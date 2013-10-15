@@ -1,0 +1,32 @@
+{
+  "name": "redisjms",
+  "version": "0.1.0",
+  "description": "Redis-JMS Bridge",
+  "keywords": [
+    "jms",
+    "weblogic",
+    "websphere",
+    "redis",
+    "queue",
+    "message queue",
+    "java",
+    "activemq"
+  ],
+  "author": "Julian Jewel <julian@julianjewel.com>",
+  "main": "./bin/server.js",
+  "scripts": {
+    "test": "node ./test.js"
+  },
+  "dependencies": {
+    "nodejms": ">=0.1.2",
+    "underscore": ">=1.5.2",
+    "config": ">=0.4.30",
+    "redis": ">=0.8.6"
+  },
+  "devDependencies": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/department-of-veterans-affairs/vlerdas-redisjms.git"
+  }
+}
