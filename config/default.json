@@ -3,7 +3,13 @@
 		"port":"6379",
 		"host":"127.0.0.1",
 		"auth" : "pass1",
-		"channel":"core.subscriptions.llfd"
+		"channel":"core.subscriptions.llfd",
+		"processingChannel" : "core.subscriptions.llfd.p",
+		"timeout" : 0,
+		"encryption": {
+			"enabled":true,
+			"passPhrase": "v4aV%ca36lil14P9DO1eZke3odyzOSQEy?cv?d.ur#s*z6K*r4eo2rmUZu4m0yph"
+		}
 	},
 	"jms": {
 		"jmsConnectLibrary":"wlfullclient.jar",

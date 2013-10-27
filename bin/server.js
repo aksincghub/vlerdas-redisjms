@@ -13,6 +13,9 @@ var NodeJms= require('nodejms');
 var retry= require('retry');
 var Log = require('vcommons').log;
 var logger = Log.getLogger('REDIS2JMS', config.log);
+var JsonFormatter = require('vcommons').jsonFormatter;
+var CryptoJS= require('crypto-js');
+
 
 var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, config.jms); 
 logger.info('Setting up Redis Connection to ', config.redis.port, config.redis.host);
@@ -27,8 +30,8 @@ client.auth(config.redis.auth, function (err) {
 	logger.info('Authenticated ' +  config.redis.host + ':' + config.redis.port);
 	// Start the process
 	logger.info('Redis Listening to ' + config.redis.channel);
-	logger.trace('Popping Data from ' + config.redis.channel);
-	client.blpop(config.redis.channel, '0', callback);
+	logger.trace('Popping Data from ' + config.redis.channel + ' into ' + config.redis.processingChannel + ' with timeout ' + config.redis.timeout);
+	client.brpoplpush(config.redis.channel, config.redis.processingChannel, config.redis.timeout, callback);
 	logger.info('Listening on Redis Channel-' 
 		+ (config.redis.host || 'localhost') + ':' 
 		+ (config.redis.port || '6379') 
@@ -36,65 +39,71 @@ client.auth(config.redis.auth, function (err) {
 		+ ' \nJMS Target Destination: ' + config.jms.destinationJndiName);
 
 });
-// Do client.auth
-
-function processErrorAndRollback(err, evt) {
-	logger.error('Rolling back due to error' + err);
-	// Something goes wrong - push event back to queue
-	logger.trace('Pushed event back to queue', evt);	
-	client.lpush(evt[0], evt[1]);
-	// Listen again
-	logger.trace('Listen again on the queue', evt);	
-	client.blpop(config.redis.channel, '0', callback);
-}
 
 function callback(err, evt){
-	if (err) {
-		if(evt) {
-			if (!_.isArray(evt)) {
-				processErrorAndRollback(err, evt);
+
+    if (err) {
+		// Stop execution on error.
+		logger.error("Received error", err);
+		throw err;
+    }
+	
+	// Process & Continue
+	processNotification(err, evt, function(err, evt){
+		if(err) {
+			logger.error('Error occured, possible elements in processing queue ', evt);
+		} else {
+			logger.info('Removing from Redis Processing Channel-' + (config.redis.host || 'localhost') + ':' + (config.redis.port || '6379'), config.redis.processingChannel);
+			client.lrem(config.redis.processingChannel, 1, evt);
+		}
+		logger.trace('Popping Data from ' + config.redis.channel + ' into ' + config.redis.processingChannel + ' with timeout ' + config.redis.timeout);
+		client.brpoplpush(config.redis.channel, config.redis.processingChannel, config.redis.timeout, callback);
+	});
+}
+
+function processNotification(err, evt, callback) {
+    var object;
+    logger.trace("Evicted from Queue:" + evt);
+	if(!_.isUndefined(config.redis.encryption) && config.redis.encryption.enabled) {
+		logger.trace("Decrypting Event..");
+		var decrypted = CryptoJS.AES.decrypt(evt, config.redis.encryption.passPhrase, { format: JsonFormatter });
+		logger.trace("Decrypted Event:" + " Event: " + decrypted);
+		object = decrypted.toString(CryptoJS.enc.Utf8)
+		logger.trace("Decrypted String:" + " Event: " + object);
+	}	else {
+		object = evt;
+	}
+	
+	if(_.isUndefined(object)) {
+		logger.error("Received empty object", object);
+		logger.error("Possible elements in processing queue", object);
+		return callback(new Error("Empty Object received" + evt), evt);
+	}
+
+	var operation = retry.operation(config.jms.retry);
+	operation.attempt(function (currentAttempt) {
+		jmsClient.sendMessageAsync(object, "text", config.jms.staticHeaders, function (err) {
+		   if (operation.retry(err)) {
+				logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
 				return;
 			}
-		} else {
-			// retry globally if there is no element
-			throw err;
-		}
-    }
-
-    var channel = evt[0];
-    var object = evt[1];
-
-
-    if (object) {
-        logger.trace("Evicted from Queue:" + channel + " Object: " + object);
-		var operation = retry.operation(config.jms.retry);
-		operation.attempt(function (currentAttempt) {
-			jmsClient.sendMessageAsync(object, "text", config.jms.staticHeaders, function (err) {
-			   if (operation.retry(err)) {
-                    logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
-                    return;
-                }
-				if(err) {
-					logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
-     				logger.error('Attempting Rollback..');
-     				processErrorAndRollback(err, evt);
-					return;
-				}
-				logger.info('Sent Message to JMS Queue:' + config.jms.destinationJndiName + ' Message:' + object);
-				// Listen again
-				logger.info('Listening on Channel:' + config.redis.channel);
-				client.blpop(config.redis.channel, '0', callback);
-				return;
-			});
+			if(err) {
+				logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
+				logger.error('Attempting Rollback..');
+				return new Callback(new Error('Retry failed with error:' + error + ' Attempt:' + currentAttempt), evt);
+			}
+			logger.info('Sent Message to JMS Queue:' + config.jms.destinationJndiName + ' Message:' + object);
+			// Listen again
+			logger.info('Listening on Channel:' + config.redis.channel);
+			return callback(null, evt);
 		});
-	}
+	});
 }
+
+
 // Default exception handler
 process.on('uncaughtException', function (err) {
     logger.error('Caught exception: ' + err);
-	// Continue listening
-    logger.trace('Continuing to listen on : ' + config.redis.channel);
-	client.blpop(config.redis.channel, '0', callback);
 });
 // Ctrl-C Shutdown
 process.on('SIGINT', function () {
