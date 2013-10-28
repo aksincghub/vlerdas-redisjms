@@ -1,6 +1,6 @@
 {
   "name": "redisjms",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Redis-JMS Bridge",
   "keywords": [
     "jms",
@@ -18,7 +18,7 @@
     "test": "node ./test.js"
   },
   "dependencies": {
-    "nodejms": ">=0.1.2",
+    "nodejms": ">=0.1.5",
     "underscore": ">=1.5.2",
     "config": ">=0.4.30",
     "redis": ">=0.8.6"
