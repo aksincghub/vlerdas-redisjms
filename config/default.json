@@ -12,6 +12,7 @@
 		}
 	},
 	"jms": {
+		"type":"QUEUE",
 		"jmsConnectLibrary":"wlfullclient.jar",
 		"destinationJndiName":"jms.das.testQueue",
 		"connectionFactoryJndiName":"jms.das.QueueConnectionFactory",

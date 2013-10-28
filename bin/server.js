@@ -82,21 +82,42 @@ function processNotification(err, evt, callback) {
 
 	var operation = retry.operation(config.jms.retry);
 	operation.attempt(function (currentAttempt) {
-		jmsClient.sendMessageAsync(object, "text", config.jms.staticHeaders, function (err) {
-		   if (operation.retry(err)) {
-				logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
-				return;
-			}
-			if(err) {
-				logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
-				logger.error('Attempting Rollback..');
-				return new Callback(new Error('Retry failed with error:' + error + ' Attempt:' + currentAttempt), evt);
-			}
-			logger.info('Sent Message to JMS Queue:' + config.jms.destinationJndiName + ' Message:' + object);
-			// Listen again
-			logger.info('Listening on Channel:' + config.redis.channel);
-			return callback(null, evt);
-		});
+		if(config.jms.type == 'QUEUE') {
+			jmsClient.sendMessageToQueueAsync(object, "text", config.jms.staticHeaders, function (err) {
+			   if (operation.retry(err)) {
+					logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
+					return;
+				}
+				if(err) {
+					logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
+					logger.error('Attempting Rollback..');
+					return new Callback(new Error('Retry failed with error:' + error + ' Attempt:' + currentAttempt), evt);
+				}
+				logger.info('Sent Message to JMS Queue:' + config.jms.destinationJndiName + ' Message:' + object);
+				// Listen again
+				logger.info('Listening on Channel:' + config.redis.channel);
+				return callback(null, evt);
+			});
+		} else if (config.jms.type == 'TOPIC') {
+			jmsClient.sendMessageToTopicAsync(object, "text", config.jms.staticHeaders, function (err) {
+			   if (operation.retry(err)) {
+					logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
+					return;
+				}
+				if(err) {
+					logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
+					logger.error('Attempting Rollback..');
+					return new Callback(new Error('Retry failed with error:' + error + ' Attempt:' + currentAttempt), evt);
+				}
+				logger.info('Sent Message to JMS Topic:' + config.jms.destinationJndiName + ' Message:' + object);
+				// Listen again
+				logger.info('Listening on Channel:' + config.redis.channel);
+				return callback(null, evt);
+			});
+		} else {
+			throw new Error("jms.config.type has to be specified as either TOPIC or QUEUE");
+		}
+		
 	});
 }
 
