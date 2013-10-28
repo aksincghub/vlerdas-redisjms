@@ -3,8 +3,8 @@
 		"port":"6379",
 		"host":"127.0.0.1",
 		"auth" : "pass1",
-		"channel":"core.subscriptions.llfd",
-		"processingChannel" : "core.subscriptions.llfd.p",
+		"channel":"core.str.sync",
+		"processingChannel" : "core.str.sync.p",
 		"timeout" : 0,
 		"encryption": {
 			"enabled":true,
