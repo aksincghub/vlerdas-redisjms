@@ -16,6 +16,8 @@ var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, conf
 var cluster = require("cluster");
 var numCPUs = require('os').cpus().length;
 var RedisQueue = require('redisqueue');
+var uuid = require('node-uuid');
+var request = require('request');
 
 // Cluster Setup for LENS
 if (cluster.isMaster) {
@@ -58,6 +60,9 @@ if (cluster.isMaster) {
                     logger.info('Sent Message to JMS Queue:' + config.jms.destinationJndiName + ' Message:' + data);
                     // Listen again
                     logger.info('Listening on Channel:' + config.redis.channel);
+                    if (!_.isUndefined(config.audit)) {
+                        audit(data);
+                    }
                     return callback();
                 });
             } else if (config.jms.type == 'TOPIC') {
@@ -66,26 +71,32 @@ if (cluster.isMaster) {
                         logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
                         return;
                     }
-                    if (err) {
-                        logger.error('Retry failed with error:', error, 'Attempt:', currentAttempt);
-                        logger.error('Attempting Rollback..');
-                        return new Callback(new Error('Retry failed with error:' + error + ' Attempt:' + currentAttempt));
-                    }
-                    logger.info('Sent Message to JMS Topic:' + config.jms.destinationJndiName + ' Message:' + data);
-                    // Listen again
-                    logger.info('Listening on Channel:' + config.redis.channel);
                     return callback();
                 });
             } else {
                 throw new Error("jms.config.type has to be specified as either TOPIC or QUEUE");
             }
-
         });
+    });
+}
+
+function audit(data) {
+
+	// Listen again
+	logger.info('Auditing:', config.audit.url);
+    var auditService = request.post(config.audit.url, function (err, res, body) {});
+	var fileName = uuid.v4() + (config.audit.headers.extension ? config.audit.headers.extension : '.dat');
+	logger.info('Auditing File:', fileName);
+    var form = auditService.form();
+    form.append('file', data, {
+        contentType : config.audit.headers.contentType,
+        filename : fileName
     });
 }
 // Default exception handler
 process.on('uncaughtException', function (err) {
     logger.error('Caught exception: ' + err);
+    process.exit()
 });
 // Ctrl-C Shutdown
 process.on('SIGINT', function () {
