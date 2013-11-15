@@ -12,7 +12,6 @@ var NodeJms = require('nodejms');
 var retry = require('retry');
 var Log = require('vcommons').log;
 var logger = Log.getLogger('REDIS2JMS', config.log);
-var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, config.jms);
 var cluster = require("cluster");
 var numCPUs = require('os').cpus().length;
 var RedisQueue = require('redisqueue');
@@ -37,6 +36,7 @@ if (cluster.isMaster) {
     });
 } else {
 
+	var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, config.jms);
     new RedisQueue(config.redis, function (data, err, callback) {
         if (_.isUndefined(data)) {
             logger.error("Received empty object", data);
