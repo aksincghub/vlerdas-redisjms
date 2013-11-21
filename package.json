@@ -25,7 +25,7 @@
 	"retry": ">=0.6.0",
 	"vcommons": ">=0.1.9",
 	"crypto-js": ">=3.1.2-1",
-	"redisqueue": ">=0.1.1",
+	"redisqueue": ">=0.1.2",
 	"node-uuid": ">=1.4.1",
 	"request": ">=2.27.0"
   },

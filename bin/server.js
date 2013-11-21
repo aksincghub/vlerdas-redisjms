@@ -17,6 +17,7 @@ var numCPUs = require('os').cpus().length;
 var RedisQueue = require('redisqueue');
 var uuid = require('node-uuid');
 var request = require('request');
+var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, config.jms);
 
 // Cluster Setup for LENS
 if (cluster.isMaster) {
@@ -36,7 +37,6 @@ if (cluster.isMaster) {
     });
 } else {
 
-	var jmsClient = new NodeJms(__dirname + "/" + config.jms.jmsConnectLibrary, config.jms);
     new RedisQueue(config.redis, function (data, err, callback) {
         if (_.isUndefined(data)) {
             logger.error("Received empty object", data);

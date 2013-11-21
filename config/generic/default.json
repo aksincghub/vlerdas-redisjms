@@ -31,7 +31,7 @@
 			},
 			{ 
 				"key": "RedisChannel",
-				"value": "vbms.str.notifications"
+				"value": "core.lens.completedEvent"
 			}
 		],
 		"retry" : {
